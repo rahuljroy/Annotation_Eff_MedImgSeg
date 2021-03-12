@@ -6,7 +6,7 @@ from tqdm import tqdm
 from torch.utils.data import DataLoader
 from torch.autograd import Variable
 from dataset import Prior_MSD, get_train_val_loader
-from train_diff_models import train_UNet, train_MOUNet, train_NFTNet
+from train_diff_models import train_UNet, train_MOUNet, train_NFTNet, train_SubNet
 
 import torch
 import torch.nn as nn
@@ -18,9 +18,9 @@ import wandb
 # wandb.init(project="test_all", entity="rahuljr")
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--n_epochs", type=int, default=2, help="number of epochs of training")
-parser.add_argument("--n_epochs_phase1", type=int, default=1, help="number of epochs of training")
-parser.add_argument("--n_epochs_phase2", type=int, default=1, help="number of epochs of training")
+parser.add_argument("--n_epochs", type=int, default=100, help="number of epochs of training")
+parser.add_argument("--n_epochs_phase1", type=int, default=50, help="number of epochs of training")
+parser.add_argument("--n_epochs_phase2", type=int, default=50, help="number of epochs of training")
 parser.add_argument("--wd", type=float, default=0, help="weight decay")
 # parser.add_argument("--decay_epoch", type=int, default=100, help="epoch from which to start lr decay")
 parser.add_argument("--data_file", type=str, default="../Sample_Data_Readme_and_other_docs", help="location of dataset")
@@ -73,27 +73,27 @@ dataset = Prior_MSD(root = root_dir, imgdir = imgdir, labeldir = labeldir, label
 
 print('Loading training dataset is done')
 
-# Defining the dataloader for testing
-root_dir = '../data/Task04_Hippocampus_processed/test/'
-imgdir = 'imagesTest'
-labeldir = 'labelsTest'
-labeldir_left = 'labels_left'
-labeldir_right = 'labels_right'
-prior_list = os.listdir('../prior_models/best_model/')
+# # Defining the dataloader for testing
+# root_dir = '../data/Task04_Hippocampus_processed/test/'
+# imgdir = 'imagesTest'
+# labeldir = 'labelsTest'
+# labeldir_left = 'labels_left'
+# labeldir_right = 'labels_right'
+# prior_list = os.listdir('../prior_models/best_model/')
 
-input_type = 'img'
+# input_type = 'img'
 
-shuffle_dataset = True
-random_seed= 42
+# shuffle_dataset = True
+# random_seed= 42
 
-test_dataset = Prior_MSD(root = root_dir, imgdir = imgdir, labeldir = labeldir, labeldir_left = labeldir_left, \
-	labeldir_right = labeldir_right, prior_list = prior_list, \
-		device = device, train_ratio = 1)
+# test_dataset = Prior_MSD(root = root_dir, imgdir = imgdir, labeldir = labeldir, labeldir_left = labeldir_left, \
+# 	labeldir_right = labeldir_right, prior_list = prior_list, \
+# 		device = device, train_ratio = 1)
 
-test_loader = DataLoader(test_dataset, batch_size=opt.batch_size, num_workers=n_cpus)
+# test_loader = DataLoader(test_dataset, batch_size=opt.batch_size, num_workers=n_cpus)
 
-print('Loading test dataset is done')
-
+# print('Loading test dataset is done')
+# for tr in [1]:
 for tr in [1, 0.8, 0.6, 0.4, 0.2, 0.1]:
 	opt.train_ratio = tr
 	train_loader, validation_loader, weights = get_train_val_loader(dataset_obj = dataset, validation_split = validation_split, \
@@ -106,7 +106,7 @@ for tr in [1, 0.8, 0.6, 0.4, 0.2, 0.1]:
 	model_name = opt.model_type + '_' + str(opt.n_epochs) + '_' + str(opt.batch_size) + '_' + str(opt.lr) + \
 		'_' + str(opt.train_ratio) + '_' + str(opt.n_channels) + '_' + str(opt.n_classes)
 	wandb.init(project='test_all', 
-				name=model_name, # Group experiments by name
+				name=model_name,
 				reinit=True,
 				config = opt
 	)
@@ -119,7 +119,7 @@ for tr in [1, 0.8, 0.6, 0.4, 0.2, 0.1]:
 	model_name = opt.model_type + '_' + str(opt.n_epochs_phase1) + '_' + str(opt.n_epochs_phase2) + '_' + str(opt.batch_size) + '_' + str(opt.lr) + \
 		'_' + str(opt.train_ratio) + '_' + str(opt.n_channels) + '_' + str(opt.n_classes)
 	wandb.init(project='test_all', 
-				name=model_name, # Group experiments by name
+				name=model_name,
 				reinit=True,
 				config = opt
 	)
@@ -132,8 +132,19 @@ for tr in [1, 0.8, 0.6, 0.4, 0.2, 0.1]:
 	model_name = opt.model_type + '_' + str(opt.n_epochs_phase1) + '_' + str(opt.n_epochs_phase2) + '_' + str(opt.batch_size) + '_' + str(opt.lr) + \
 		'_' + str(opt.train_ratio) + '_' + str(opt.n_channels) + '_' + str(opt.n_classes)
 	wandb.init(project='test_all', 
-				name=model_name, # Group experiments by name
+				name=model_name,
 				reinit=True,
 				config = opt
 	)
 	train_NFTNet(input_type, 'seg_left', 'seg_right', 'seg', wandb, train_loader, validation_loader, weights.cuda(), opt, device, model_name = model_name)
+
+	print('Training SUBNet')
+	opt.model_type = 'SUBNet'
+	model_name = opt.model_type + '_' + str(opt.n_epochs_phase1) + '_' + str(opt.n_epochs_phase2) + '_' + str(opt.batch_size) + '_' + str(opt.lr) + \
+		'_' + str(opt.train_ratio) + '_' + str(opt.n_channels) + '_' + str(opt.n_classes)
+	wandb.init(project='test_all', 
+				name=model_name,
+				reinit=True,
+				config = opt
+	)
+	train_SubNet(input_type, 'seg_left', 'seg_full', wandb, train_loader, validation_loader, weights.cuda(), opt, device, model_name = model_name)

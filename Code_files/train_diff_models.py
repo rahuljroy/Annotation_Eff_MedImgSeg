@@ -22,7 +22,7 @@ def train_UNet(input_type, output_type, wandb, train_loader, validation_loader, 
         columns=["Background", output_type, "Avg Dice"]        
     model, avg_losses, avg_dscoeffs, dscoeffs_train, table_train, val_avg_losses, val_avg_dscoeffs, val_dscoeffs, table_val = \
         train_model(model, wandb, epochs, num_classes, weights, train_loader, input_type, output_type, columns, validation_loader, \
-            optimizer, scheduler, phase = str(1), part = 'f', model_name = opt.model_type, filepath = model_name)
+            optimizer, scheduler, phase = str(1), part = 'f', model_name = opt.model_type, filepath = model_name, save = 1)
     
     table_train = wandb.Table(dataframe=pd.DataFrame(table_train, columns = columns))
     table_val = wandb.Table(dataframe=pd.DataFrame(table_val, columns = columns))
@@ -51,7 +51,8 @@ def train_MOUNet(input_type, output_type_phase1, output_type_phase2, wandb, trai
 
     print('Training Phase 1 left')    
     model1, avg_losses, avg_dscoeffs, dscoeffs_train, table_train, val_avg_losses, val_avg_dscoeffs, val_dscoeffs, table_val = \
-        train_model(model1, wandb, epochs1, num_classes_1, weights[0:2], train_loader, input_type, output_type_phase1, columns, validation_loader, optimizer, scheduler, part = 'l')
+        train_model(model1, wandb, epochs1, num_classes_1, weights[0:2], train_loader, input_type, output_type_phase1, columns, \
+            validation_loader, optimizer, scheduler, part = 'l', save = 0)
     
     table_train_1 = wandb.Table(dataframe=pd.DataFrame(table_train, columns = columns))
     table_val_1 = wandb.Table(dataframe=pd.DataFrame(table_val, columns = columns))
@@ -136,7 +137,7 @@ def train_NFTNet(input_type, output_type_phase1_left, output_type_phase1_right, 
     print('Training Phase 1 left')       
     model1_left, avg_losses, avg_dscoeffs, dscoeffs_train, table_train, val_avg_losses, val_avg_dscoeffs, val_dscoeffs, table_val = \
         train_model(model1_left, wandb, epochs1, num_classes_1, weights[0:2], train_loader, input_type, output_type_phase1_left, columns, \
-            validation_loader, optimizer_left, scheduler_left, phase = str(1), part = 'l')
+            validation_loader, optimizer_left, scheduler_left, phase = str(1), part = 'l', save = 0)
     
     table_train_1_left = wandb.Table(dataframe=pd.DataFrame(table_train, columns = columns))
     table_val_1_left = wandb.Table(dataframe=pd.DataFrame(table_val, columns = columns))
@@ -151,7 +152,7 @@ def train_NFTNet(input_type, output_type_phase1_left, output_type_phase1_right, 
     print('Training Phase 1 right')
     model1_right, avg_losses, avg_dscoeffs, dscoeffs_train, table_train, val_avg_losses, val_avg_dscoeffs, val_dscoeffs, table_val = \
         train_model(model1_right, wandb, epochs1, num_classes_1, weights[0:2], train_loader, input_type, output_type_phase1_right, columns, \
-            validation_loader, optimizer_right, scheduler_right, part = 'r')
+            validation_loader, optimizer_right, scheduler_right, part = 'r', save = 0)
     
     table_train_1_right = wandb.Table(dataframe=pd.DataFrame(table_train, columns = columns))
     table_val_1_right = wandb.Table(dataframe=pd.DataFrame(table_val, columns = columns))
@@ -177,7 +178,7 @@ def train_NFTNet(input_type, output_type_phase1_left, output_type_phase1_right, 
     print('Training Phase 2 full')
     model2, avg_losses, avg_dscoeffs, dscoeffs_train, table_train, val_avg_losses, val_avg_dscoeffs, val_dscoeffs, table_val = \
         train_model(model2, wandb, epochs2, num_classes_2, weights, train_loader, input_type, output_type_phase2, columns, validation_loader, \
-            optimizer, scheduler, phase = str(2), part = 'f', model_name = opt.model_type, filepath = model_name)
+            optimizer, scheduler, phase = str(2), part = 'f', model_name = opt.model_type, filepath = model_name, save = 1)
     
     table_train_2 = wandb.Table(dataframe=pd.DataFrame(table_train, columns = columns))
     table_val_2 = wandb.Table(dataframe=pd.DataFrame(table_val, columns = columns))
@@ -188,7 +189,7 @@ def train_SubNet(input_type, output_type_phase1,  output_type_phase2_full, wandb
     epochs1 = opt.n_epochs_phase1
     epochs2 = opt.n_epochs_phase2
     num_classes_1 = opt.n_classes_phase1
-    num_classes_2 = opt.n_classes_phase2
+    # num_classes_2 = opt.n_classes_phase2
 
     #phase1 training NFTs
 
@@ -202,7 +203,8 @@ def train_SubNet(input_type, output_type_phase1,  output_type_phase2_full, wandb
     if num_classes_1 == 2:
         columns=["Background", output_type_phase1, "Avg Dice"]        
     model1, avg_losses, avg_dscoeffs, dscoeffs_train, table_train, val_avg_losses, val_avg_dscoeffs, val_dscoeffs, table_val = \
-        train_model(model1, wandb, epochs1, num_classes_1, weights[0:2], train_loader, input_type, output_type_phase1, columns, validation_loader, optimizer_left, scheduler_left)
+        train_model(model1, wandb, epochs1, num_classes_1, weights[0:2], train_loader, input_type, output_type_phase1, columns, \
+            validation_loader, optimizer_left, scheduler_left, phase = str(1), part = 'l', model_name = opt.model_type, filepath = model_name + '_left_', save = 1)
     
     table_train_1_left = wandb.Table(dataframe=pd.DataFrame(table_train, columns = columns))
     table_val_1_left = wandb.Table(dataframe=pd.DataFrame(table_val, columns = columns))
@@ -212,20 +214,24 @@ def train_SubNet(input_type, output_type_phase1,  output_type_phase2_full, wandb
 
     #phase2 training NFT
 
-    model2 = UNet2D(num_classes_2, opt.n_channels).cuda()
+    model2 = UNet2D(num_classes_1, opt.n_channels).cuda()
 
     optimizer = torch.optim.Adam(model2.parameters(), lr=opt.lr, betas=(opt.b1, opt.b2), weight_decay=opt.wd)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.5, patience=2, min_lr=1e-6)
 
 
-    if num_classes_2 == 3:
+    if num_classes_1 == 3:
         columns=["Background", "Anterior", "Posterior", "Avg Dice"]
-    if num_classes_2 == 2:
-        columns=["Background", output_type_phase2, "Avg Dice"]        
+    if num_classes_1 == 2:
+        columns=["Background", output_type_phase2_full, "Avg Dice"]        
     model2, avg_losses, avg_dscoeffs, dscoeffs_train, table_train_2, val_avg_losses, val_avg_dscoeffs, val_dscoeffs, table_val_2 = \
-        train_model(model2, wandb, epochs2, num_classes_2, weights, train_loader, input_type, output_type_phase2_full, columns, validation_loader, optimizer, scheduler)
+        train_model(model2, wandb, epochs2, num_classes_1, weights[0:2], train_loader, input_type, output_type_phase2_full, columns, \
+            validation_loader, optimizer, scheduler, phase = str(1), part = 'l', model_name = opt.model_type, filepath = model_name + '_full_', save = 1)
     
     table_train_2 = wandb.Table(dataframe=pd.DataFrame(table_train, columns = columns))
     table_val_2 = wandb.Table(dataframe=pd.DataFrame(table_val, columns = columns))
     wandb.log({"Train Table_phase2": table_train_2})
     wandb.log({"Val Table_phase2": table_val_2})
+
+    Avg_right_dice = eval_subnet_right(model2, model1, num_classes_1, validation_loader, input_type, output_type_phase1, 'seg_right', output_type_phase2_full, wandb)
+    print(Avg_right_dice)
