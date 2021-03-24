@@ -5,11 +5,8 @@ from tqdm import tqdm
 
 from torch.utils.data import DataLoader
 from torch.autograd import Variable
-from dataset import Prior_MSD, get_train_val_loader
-# from train_diff_models import train_UNet, train_MOUNet, train_NFTNet, train_SubNet
-
-# from sp import train_UNet, train_MOUNet, train_NFTNet, train_SubNet
-from nosp import train_UNet, train_MOUNet, train_NFTNet, train_SubNet
+from dataset import GT_Prior_MSD, get_train_val_loader
+from train_diff_models import train_UNet, train_MOUNet, train_NFTNet, train_SubNet
 
 import torch
 import torch.nn as nn
@@ -40,7 +37,7 @@ parser.add_argument("--n_classes", type=int, default=3, help="number of classes 
 parser.add_argument("--n_classes_phase1", type=int, default=2, help="number of classes for segmentation")
 parser.add_argument("--n_classes_phase2", type=int, default=3, help="number of classes for segmentation")
 parser.add_argument("--prior_channel_bool", type=int, default=1.0, help="number of classes for segmentation")
-parser.add_argument("--n_channels", type=int, default=1, help="number of classes for segmentation")
+parser.add_argument("--n_channels", type=int, default=2, help="number of classes for segmentation")
 # parser.add_argument("--img_height", type=int, default=256, help="size of image height")
 # parser.add_argument("--img_width", type=int, default=256, help="size of image width")
 # parser.add_argument("--sample_interval", type=int, default=1, help="epochs after which we sample of images from generators")
@@ -71,11 +68,18 @@ shuffle_dataset = True
 random_seed= 42
 train_ratio = opt.train_ratio
 
-dataset = Prior_MSD(root = root_dir, imgdir = imgdir, labeldir = labeldir, labeldir_left = labeldir_left, \
+dataset = GT_Prior_MSD(root = root_dir, imgdir = imgdir, labeldir = labeldir, labeldir_left = labeldir_left, \
 	labeldir_right = labeldir_right, prior_list = prior_list, \
 		device = device, train_ratio = train_ratio)
 
 print('Loading training dataset is done')
+
+# train_loader, validation_loader, weights = get_train_val_loader(dataset_obj = dataset, validation_split = validation_split, \
+# 	batch_size = opt.batch_size, train_ratio = opt.train_ratio, n_cpus = opt.n_cpu)
+
+# i, batch = next(enumerate(train_loader))
+# print(batch['img'].shape)
+# print(batch['cat_full'].shape)
 
 # # Defining the dataloader for testing
 # root_dir = '../data/Task04_Hippocampus_processed/test/'
@@ -108,7 +112,7 @@ for tr in [0.1, 1, 0.8, 0.6, 0.4, 0.2]:
 	opt.model_type = 'UNet'
 	model_name = opt.model_type + '_' + str(opt.n_epochs) + '_' + str(opt.batch_size) + '_' + str(opt.lr) + \
 		'_' + str(opt.train_ratio) + '_' + str(opt.n_channels) + '_' + str(opt.n_classes)
-	wandb.init(project='test_models_noSP_noweights', 
+	wandb.init(project='test_all_GTSP_noweights', 
 				name=model_name,
 				reinit=True,
 				config = opt
@@ -121,7 +125,7 @@ for tr in [0.1, 1, 0.8, 0.6, 0.4, 0.2]:
 	opt.model_type = 'MOUNet'
 	model_name = opt.model_type + '_' + str(opt.n_epochs_phase1) + '_' + str(opt.n_epochs_phase2) + '_' + str(opt.batch_size) + '_' + str(opt.lr) + \
 		'_' + str(opt.train_ratio) + '_' + str(opt.n_channels) + '_' + str(opt.n_classes)
-	wandb.init(project='test_models_noSP_noweights', 
+	wandb.init(project='test_all_GTSP_noweights', 
 				name=model_name,
 				reinit=True,
 				config = opt
@@ -134,7 +138,7 @@ for tr in [0.1, 1, 0.8, 0.6, 0.4, 0.2]:
 	opt.model_type = 'NFTNet'
 	model_name = opt.model_type + '_' + str(opt.n_epochs_phase1) + '_' + str(opt.n_epochs_phase2) + '_' + str(opt.batch_size) + '_' + str(opt.lr) + \
 		'_' + str(opt.train_ratio) + '_' + str(opt.n_channels) + '_' + str(opt.n_classes)
-	wandb.init(project='test_models_noSP_noweights', 
+	wandb.init(project='test_all_GTSP_noweights', 
 				name=model_name,
 				reinit=True,
 				config = opt
@@ -145,7 +149,7 @@ for tr in [0.1, 1, 0.8, 0.6, 0.4, 0.2]:
 	opt.model_type = 'SUBNet'
 	model_name = opt.model_type + '_' + str(opt.n_epochs_phase1) + '_' + str(opt.n_epochs_phase2) + '_' + str(opt.batch_size) + '_' + str(opt.lr) + \
 		'_' + str(opt.train_ratio) + '_' + str(opt.n_channels) + '_' + str(opt.n_classes)
-	wandb.init(project='test_models_noSP_noweights', 
+	wandb.init(project='test_all_GTSP_noweights', 
 				name=model_name,
 				reinit=True,
 				config = opt

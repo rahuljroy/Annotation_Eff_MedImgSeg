@@ -8,6 +8,32 @@ import torch.nn as nn
 from torch.autograd import Variable
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
+
+def plot_segs(img, seg_gt, seg_left, seg_full, seg_right):
+    fig = plt.figure(figsize=(20,5))
+    plt.subplot(1,5,1).imshow(img, cmap='gray')
+    plt.subplot(1,5,1).set_title('Input Image', fontsize = 20)
+    plt.xticks([])
+    plt.yticks([])
+    plt.subplot(1,5,2).imshow(seg_gt, cmap='gray')
+    plt.subplot(1,5,2).set_title('Ground Truth Segmentation', fontsize = 20)
+    plt.xticks([])
+    plt.yticks([])
+    plt.subplot(1,5,3).imshow(seg_full, cmap='gray')
+    plt.subplot(1,5,3).set_title(' Full Hippocampus Seg', fontsize = 20)
+    plt.xticks([])
+    plt.yticks([])
+    plt.subplot(1,5,4).imshow(seg_left, cmap='gray')
+    plt.subplot(1,5,4).set_title('Anterior Hippocampus Seg', fontsize = 18)
+    plt.xticks([])
+    plt.yticks([])
+    plt.subplot(1,5,5).imshow(seg_right, cmap='gray')
+    plt.subplot(1,5,5).set_title('Posterior Hippocampus Seg', fontsize = 18)
+    plt.xticks([])
+    plt.yticks([])
+    plt.tight_layout()
+    plt.show()
 
 def dice_coeff(y_true, y_pred):
     smooth = 1
@@ -20,25 +46,36 @@ def dice_coeff(y_true, y_pred):
     score = (2. * intersection + smooth) / (torch.sum(y_true_flat) + torch.sum(y_pred_flat) + smooth)
     return score
 
-def dice_coeff_multiclass(y_true, y_pred, num_classes):
-    dice = []
-    output = torch.argmax(y_pred, dim=1).unsqueeze(dim=1)
-    # print(output.shape)
-    # y_true = y_true.squeeze(0)
-    # print(torch.unique(y_true), torch.unique(output))
-    # print(output.shape, y_true.shape)
-    for i in range(num_classes):
-        segs = y_true.clone().detach()
-        segs[y_true==i]=1
-        segs[y_true!=i]=0
-        # print(torch.unique(segs==y_true))
-        outs = output.clone().detach()
-        outs[output==i]=1
-        outs[output!=i]=0
-        # print(torch.unique(outs==output))
-        dice.append(dice_coeff(segs, outs).item())
-    # print(dice)
-    return dice, output, y_true
+def dice_coeff_multiclass(y_true, y_pred, num_classes, subnet = False):
+    if not subnet:
+        dice = []
+        output = torch.argmax(y_pred, dim=1).unsqueeze(dim=1)
+        for i in range(num_classes):
+            segs = y_true.clone().detach()
+            segs[y_true==i]=1
+            segs[y_true!=i]=0
+            # print(torch.unique(segs==y_true))
+            outs = output.clone().detach()
+            outs[output==i]=1
+            outs[output!=i]=0
+            # print(torch.unique(outs==output))
+            dice.append(dice_coeff(segs, outs).item())
+        # print(dice)
+        return dice, output, y_true
+    else:
+        dice = []
+        for i in range(num_classes):
+            segs = y_true.clone().detach()
+            segs[y_true==i]=1
+            segs[y_true!=i]=0
+            # print(torch.unique(segs==y_true))
+            outs = y_pred.clone().detach()
+            outs[y_pred==i]=1
+            outs[y_pred!=i]=0
+            # print(torch.unique(outs==output))
+            dice.append(dice_coeff(segs, outs).item())
+        # print(dice)
+        return dice, y_pred, y_true
 
 def dice_loss(true, logits, eps=1e-7):
     """Computes the Sørensen–Dice loss.
@@ -82,7 +119,8 @@ def cross_ent_dice_loss(y_true, y_pred, weights):
     # print(y_true.shape, y_pred.shape)
     # loss = nn.CrossEntropyLoss
     # y_pred = torch.argmax(y_pred, 1)
-    loss = F.cross_entropy(y_pred.float(), y_true, weight=weights) + dice_loss(y_true, y_pred)
+    # loss = F.cross_entropy(y_pred.float(), y_true, weight=weights) + dice_loss(y_true, y_pred)
+    loss = F.cross_entropy(y_pred.float(), y_true) + dice_loss(y_true, y_pred)
     return loss
 
 
@@ -237,7 +275,7 @@ def train_model(model, wandb, epochs, num_classes, weights, train_loader, input_
             validate_model(model, wandb, num_classes, weights, validation_loader, input_type, output_type, table_val, phase, part)
         pbar_outer.update(1)
         if save:
-            filepath_save = '../models/' + model_name + '/' + filepath + '_epoch_' + str(epoch) + '.pt'
+            filepath_save = '../models_noSP_noweights/' + model_name + '/' + filepath + '_epoch_' + str(epoch) + '.pt'
             torch.save(model.state_dict(), filepath_save)
     
     return model, avg_losses, avg_dscoeffs, dscoeffs_train, table_train, val_avg_losses, val_avg_dscoeffs, val_dscoeffs, table_val
@@ -374,9 +412,9 @@ def train_val_mounet(model_enc, model_dec1, model_dec2, wandb, epochs, num_class
         pbar_train.set_description("train: Avg loss: {:.3f}, Avg_dice: {:.3f}".format(avg_loss/len(train_loader),avg_dscoeff/len(train_loader)))
         wandb.log({"Train Avg loss phase2": round(avg_loss/len(train_loader), 3), "Train Avg dice phase2": round(avg_dscoeff/len(train_loader), 3)})
 
-        filepath_enc = '../models/' + model_name + '/' + 'enc_' + filepath + '_epoch_' + str(epoch) + '.pt'
+        filepath_enc = '../models_noSP_noweights/' + model_name + '/' + 'enc_' + filepath + '_epoch_' + str(epoch) + '.pt'
         torch.save(model_enc.state_dict(), filepath_enc)
-        filepath_dec = '../models/' + model_name + '/' + 'dec_' + filepath + '_epoch_' + str(epoch) + '.pt'
+        filepath_dec = '../models_noSP_noweights/' + model_name + '/' + 'dec_' + filepath + '_epoch_' + str(epoch) + '.pt'
         torch.save(model_dec2.state_dict(), filepath_dec)
     #         pbar.set_postfix(**{'loss (batch)': loss.item(), 'DSC (batch)': dscoeff})
     #         pbar.update(i)
@@ -455,24 +493,31 @@ def eval_subnet_right(model_full, model_left, num_classes, validation_loader, in
     for i, batch in enumerate(validation_loader):
         with torch.no_grad():
             count+=1
-            input_img = Variable(batch[input_type]).cuda()
+            input_img_left = Variable(batch['cat_left']).cuda()
+            input_img_full = Variable(batch['cat_hip']).cuda()
             segs_left = Variable(batch[output_type_left]).cuda()
             segs_right = Variable(batch[output_type_right]).cuda()
             segs_full = Variable(batch[output_type_full]).cuda()
 
-            output_full = model_full(input_img)
-            output_left = model_left(input_img)
-            output_right = output_full - output_left
+            output_full = model_full(input_img_full)
+            output_left = model_left(input_img_left)
+            # output_right = output_full - output_left
             
             # loss = cross_ent_dice_loss(torch.squeeze(segs_full, dim=1), output_full, weights)
             # loss.backward()
             # optimizer.step()
             dscoeff_full, outs_full, segs_full = dice_coeff_multiclass(segs_full, output_full, num_classes)
             dscoeff_left, outs_left, segs_left = dice_coeff_multiclass(segs_left, output_left, num_classes)
-            dscoeff_right, outs_right, segs_right = dice_coeff_multiclass(segs_right, output_right, num_classes)
+            output_right = outs_full - outs_left
+            output_right[output_right<0] = 0
+            dscoeff_right, outs_right, segs_right = dice_coeff_multiclass(segs_right, output_right, 2, subnet = True)
             
             # print(dscoeff_right)
             val_dscoeffs.append(dscoeff_right[-1])
+
+            if i == 135:
+                plot_segs(batch['img'][0].squeeze().cpu().numpy(), batch['seg'].squeeze().cpu().numpy(),\
+                    outs_left.squeeze().cpu().numpy(), outs_full.squeeze().cpu().numpy(), outs_right.squeeze().cpu().numpy())
 
             # val_avg_loss += loss.item()
             # val_avg_dscoeff += sum(dscoeff)/(num_classes)
@@ -485,9 +530,9 @@ def eval_subnet_right(model_full, model_left, num_classes, validation_loader, in
     # val_avg_losses.append(val_avg_loss/len(validation_loader))
     pbar_val.set_description("Val: Avg loss: {:.3f}, Avg_dice: {:.3f}".\
         format(val_avg_loss/len(validation_loader),val_avg_dscoeff/len(validation_loader)))
-    table = wandb.Table(columns=["Posterior SubNet"])
-    table.add_data(str(np.mean(np.array(val_dscoeffs))))
-    wandb.log({"Posterior Subnet": table})
+    # table = wandb.Table(columns=["Posterior SubNet"])
+    # table.add_data(str(np.mean(np.array(val_dscoeffs))))
+    # wandb.log({"Posterior Subnet": table})
     # new = list(val_dscoeffs[-1])
     # new.append(val_avg_dscoeff/len(validation_loader))
     # table_val.append(new)
