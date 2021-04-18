@@ -98,7 +98,7 @@ print('Loading training dataset is done')
 
 # print('Loading test dataset is done')
 # for tr in [1]:
-for tr in [0.1, 1, 0.8, 0.6, 0.4, 0.2]:
+for tr in [0.1, 0.075, 0.05, 0.25, 0.01]:#, 1, 0.8, 0.6, 0.4, 0.2]:
 	opt.train_ratio = tr
 	train_loader, validation_loader, weights = get_train_val_loader(dataset_obj = dataset, validation_split = validation_split, \
 		batch_size = opt.batch_size, train_ratio = opt.train_ratio, n_cpus = opt.n_cpu)
@@ -108,7 +108,7 @@ for tr in [0.1, 1, 0.8, 0.6, 0.4, 0.2]:
 	opt.model_type = 'UNet'
 	model_name = opt.model_type + '_' + str(opt.n_epochs) + '_' + str(opt.batch_size) + '_' + str(opt.lr) + \
 		'_' + str(opt.train_ratio) + '_' + str(opt.n_channels) + '_' + str(opt.n_classes)
-	wandb.init(project='test_models_noSP_noweights', 
+	wandb.init(project='test_models_new_less_fraction', 
 				name=model_name,
 				reinit=True,
 				config = opt
@@ -121,7 +121,7 @@ for tr in [0.1, 1, 0.8, 0.6, 0.4, 0.2]:
 	opt.model_type = 'MOUNet'
 	model_name = opt.model_type + '_' + str(opt.n_epochs_phase1) + '_' + str(opt.n_epochs_phase2) + '_' + str(opt.batch_size) + '_' + str(opt.lr) + \
 		'_' + str(opt.train_ratio) + '_' + str(opt.n_channels) + '_' + str(opt.n_classes)
-	wandb.init(project='test_models_noSP_noweights', 
+	wandb.init(project='test_models_new_less_fraction', 
 				name=model_name,
 				reinit=True,
 				config = opt
@@ -134,18 +134,18 @@ for tr in [0.1, 1, 0.8, 0.6, 0.4, 0.2]:
 	opt.model_type = 'NFTNet'
 	model_name = opt.model_type + '_' + str(opt.n_epochs_phase1) + '_' + str(opt.n_epochs_phase2) + '_' + str(opt.batch_size) + '_' + str(opt.lr) + \
 		'_' + str(opt.train_ratio) + '_' + str(opt.n_channels) + '_' + str(opt.n_classes)
-	wandb.init(project='test_models_noSP_noweights', 
+	wandb.init(project='test_models_new_less_fraction', 
 				name=model_name,
 				reinit=True,
 				config = opt
 	)
 	train_NFTNet(input_type, 'seg_left', 'seg_right', 'seg', wandb, train_loader, validation_loader, weights.cuda(), opt, device, model_name = model_name)
 
-	print('Training SUBNet')
+	print('f SUBNet')
 	opt.model_type = 'SUBNet'
 	model_name = opt.model_type + '_' + str(opt.n_epochs_phase1) + '_' + str(opt.n_epochs_phase2) + '_' + str(opt.batch_size) + '_' + str(opt.lr) + \
 		'_' + str(opt.train_ratio) + '_' + str(opt.n_channels) + '_' + str(opt.n_classes)
-	wandb.init(project='test_models_noSP_noweights', 
+	wandb.init(project='test_models_new_less_fraction', 
 				name=model_name,
 				reinit=True,
 				config = opt
