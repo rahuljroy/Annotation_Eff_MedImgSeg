@@ -38,7 +38,7 @@ def plot_segs(img, seg_gt, seg_left, seg_full, seg_right):
 def dice_coeff(y_true, y_pred):
     smooth = 1
     # print(y_true.shape, y_pred.shape)
-    assert y_true.shape == y_pred.shape, "Tensor dimensions must match"
+    # assert y_true.shape == y_pred.shape, "Tensor dimensions must match"
     shape = y_true.shape
     y_true_flat = y_true.flatten()
     y_pred_flat = y_pred.flatten()
@@ -115,7 +115,7 @@ def bce_dice_loss(y_true, y_pred):
     loss = F.binary_cross_entropy(y_pred, y_true) + dice_loss(y_true, y_pred)
     return loss
 
-def cross_ent_dice_loss(y_true, y_pred, weights):
+def cross_ent_dice_loss(y_true, y_pred, weights=None):
     # print(y_true.shape, y_pred.shape)
     # loss = nn.CrossEntropyLoss
     # y_pred = torch.argmax(y_pred, 1)
@@ -202,7 +202,9 @@ def set_grads_NFT(model1, model2, model3):
             if (params3[item].shape == params1[item].shape):
                 params3[item] = params1[item]
                 params3[item].requires_grad = params1[item].requires_grad
-
+    
+    pytorch_total_params = sum(params3[p].numel() for p in params3 if params3[p].requires_grad)
+    print('\n\nThe number of trainable parameters is: ', pytorch_total_params)
     return model3
 
 def train_model(model, wandb, epochs, num_classes, weights, train_loader, input_type, output_type, columns, validation_loader, \
@@ -242,10 +244,10 @@ def train_model(model, wandb, epochs, num_classes, weights, train_loader, input_
             count+=1
             optimizer.zero_grad()
             input_img = Variable(batch[input_type]).cuda()
-            segs = Variable(batch[output_type]).cuda()
+            segs = Variable(batch[output_type]).type(torch.LongTensor).cuda()
             outputs = model(input_img)
             
-            loss = cross_ent_dice_loss(torch.squeeze(segs, dim=1), outputs, weights)
+            loss = cross_ent_dice_loss(torch.squeeze(segs, dim=1), outputs)
             loss.backward()
             optimizer.step()
             dscoeff, outs, segs = dice_coeff_multiclass(segs, outputs, num_classes)
@@ -275,7 +277,7 @@ def train_model(model, wandb, epochs, num_classes, weights, train_loader, input_
             validate_model(model, wandb, num_classes, weights, validation_loader, input_type, output_type, table_val, phase, part)
         pbar_outer.update(1)
         if save:
-            filepath_save = '../models_noSP_noweights/' + model_name + '/' + filepath + '_epoch_' + str(epoch) + '.pt'
+            filepath_save = '../Spine_priorSP/' + model_name + '/' + filepath + '_epoch_' + str(epoch) + '.pt'
             torch.save(model.state_dict(), filepath_save)
     
     return model, avg_losses, avg_dscoeffs, dscoeffs_train, table_train, val_avg_losses, val_avg_dscoeffs, val_dscoeffs, table_val
@@ -306,10 +308,10 @@ def validate_model(model, wandb, num_classes, weights, validation_loader, input_
         with torch.no_grad():
             count+=1
             input_img = Variable(batch[input_type]).cuda()
-            segs = Variable(batch[output_type]).cuda()
+            segs = Variable(batch[output_type]).type(torch.LongTensor).cuda()
             outputs = model(input_img)
             
-            loss = cross_ent_dice_loss(torch.squeeze(segs, dim=1), outputs, weights)
+            loss = cross_ent_dice_loss(torch.squeeze(segs, dim=1), outputs)
             # loss.backward()
             # optimizer.step()
             dscoeff, outs, segs = dice_coeff_multiclass(segs, outputs, num_classes)
@@ -378,15 +380,15 @@ def train_val_mounet(model_enc, model_dec1, model_dec2, wandb, epochs, num_class
             optimizer2.zero_grad()
     #         print(len(batch[0]))model_name
             input_img = Variable(batch[input_type]).cuda()
-            segs = Variable(batch[output_type1]).cuda()
-            segs2 = Variable(batch[output_type2]).cuda()
+            segs = Variable(batch[output_type1]).type(torch.LongTensor).cuda()
+            segs2 = Variable(batch[output_type2]).type(torch.LongTensor).cuda()
 
             encoder0, encoder1, encoder2, encoder3, center = model_enc(input_img)
             outputs1 = model_dec1(encoder0, encoder1, encoder2, encoder3, center)
             outputs2 = model_dec2(encoder0, encoder1, encoder2, encoder3, center)
             
-            loss1 = cross_ent_dice_loss(torch.squeeze(segs, dim=1), outputs1, weights[0:2])
-            loss2 = cross_ent_dice_loss(torch.squeeze(segs2, dim=1), outputs2, weights)
+            loss1 = cross_ent_dice_loss(torch.squeeze(segs, dim=1), outputs1)
+            loss2 = cross_ent_dice_loss(torch.squeeze(segs2, dim=1), outputs2)
             loss = ((1 - Lambda) * loss1) + (Lambda * loss2)
             loss.backward()
             optimizer0.step()
@@ -412,9 +414,9 @@ def train_val_mounet(model_enc, model_dec1, model_dec2, wandb, epochs, num_class
         pbar_train.set_description("train: Avg loss: {:.3f}, Avg_dice: {:.3f}".format(avg_loss/len(train_loader),avg_dscoeff/len(train_loader)))
         wandb.log({"Train Avg loss phase2": round(avg_loss/len(train_loader), 3), "Train Avg dice phase2": round(avg_dscoeff/len(train_loader), 3)})
 
-        filepath_enc = '../models_noSP_noweights/' + model_name + '/' + 'enc_' + filepath + '_epoch_' + str(epoch) + '.pt'
+        filepath_enc = '../Spine_priorSP/' + model_name + '/' + 'enc_' + filepath + '_epoch_' + str(epoch) + '.pt'
         torch.save(model_enc.state_dict(), filepath_enc)
-        filepath_dec = '../models_noSP_noweights/' + model_name + '/' + 'dec_' + filepath + '_epoch_' + str(epoch) + '.pt'
+        filepath_dec = '../Spine_priorSP/' + model_name + '/' + 'dec_' + filepath + '_epoch_' + str(epoch) + '.pt'
         torch.save(model_dec2.state_dict(), filepath_dec)
     #         pbar.set_postfix(**{'loss (batch)': loss.item(), 'DSC (batch)': dscoeff})
     #         pbar.update(i)
@@ -432,16 +434,16 @@ def train_val_mounet(model_enc, model_dec1, model_dec2, wandb, epochs, num_class
                 # optimizer.zero_grad()
         #         print(len(batch[0]))
                 input_img = Variable(batch[input_type]).cuda()
-                segs = Variable(batch[output_type1]).cuda()
-                segs2 = Variable(batch[output_type2]).cuda()
+                segs = Variable(batch[output_type1]).type(torch.LongTensor).cuda()
+                segs2 = Variable(batch[output_type2]).type(torch.LongTensor).cuda()
                 encoder0, encoder1, encoder2, encoder3, center = model_enc(input_img)
                 outputs1 = model_dec1(encoder0, encoder1, encoder2, encoder3, center)
                 outputs2 = model_dec2(encoder0, encoder1, encoder2, encoder3, center)
                 # print(outputs.shape)
                 # print(torch.unique(torch.argmax(outputs, 1)))
                 
-                loss1 = cross_ent_dice_loss(torch.squeeze(segs, dim=1), outputs1, weights[0:2])
-                loss2 = cross_ent_dice_loss(torch.squeeze(segs2, dim=1), outputs2, weights)
+                loss1 = cross_ent_dice_loss(torch.squeeze(segs, dim=1), outputs1)
+                loss2 = cross_ent_dice_loss(torch.squeeze(segs2, dim=1), outputs2)
                 loss = ((1 - Lambda) * loss1) + (Lambda * loss2)
                 # loss.backward()   
                 # loss.backward()
@@ -495,9 +497,9 @@ def eval_subnet_right(model_full, model_left, num_classes, validation_loader, in
             count+=1
             input_img_left = Variable(batch['cat_left']).cuda()
             input_img_full = Variable(batch['cat_hip']).cuda()
-            segs_left = Variable(batch[output_type_left]).cuda()
-            segs_right = Variable(batch[output_type_right]).cuda()
-            segs_full = Variable(batch[output_type_full]).cuda()
+            segs_left = Variable(batch[output_type_left]).type(torch.LongTensor).cuda()
+            segs_right = Variable(batch[output_type_right]).type(torch.LongTensor).cuda()
+            segs_full = Variable(batch[output_type_full]).type(torch.LongTensor).cuda()
 
             output_full = model_full(input_img_full)
             output_left = model_left(input_img_left)
